@@ -6,6 +6,7 @@
 #define BTN_MINUS_PIN 32
 
 #define SLIDER_PIN_CFG 34
+#define PWM_SLIDER_PIN_CFG 39
 
 #define DMX_RX_PIN 16
 #define DMX_TX_PIN 17

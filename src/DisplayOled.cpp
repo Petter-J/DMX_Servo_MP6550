@@ -50,6 +50,8 @@ void DisplayOled::begin()
 void DisplayOled::drawRun(const RuntimeSettings &rt,
                           uint8_t currentValue,
                           uint8_t angle,
+                          uint8_t pwm1,
+                          uint8_t pwm2,
                           bool pbPlaying,
                           uint8_t pbSlot1to9,
                           uint32_t pbRemainSec,
@@ -91,30 +93,59 @@ void DisplayOled::drawRun(const RuntimeSettings &rt,
         d.print("DMX ");
         d.print(rt.dmxAddress);
 
-        d.setCursor(0, 22);
-        d.print("Value:");
+        d.setTextSize(1);
+
+        d.setCursor(0, 24);
+        d.print("Servo:");
         d.print(currentValue);
 
-        d.setCursor(0, 45);
-        d.print("Angle:");
+        d.setCursor(70, 24);
+        d.print("Ang:");
 
         int a = servoRel(angle);
+
         if (a >= 0)
             d.print("+");
+
         d.print(a);
+
+        d.setCursor(0, 40);
+        d.print("FWD:");
+        d.print(pwm1);
+
+        d.setCursor(70, 40);
+        d.print("REV:");
+        d.print(pwm2);
     }
     else if (rt.inputMode == InputMode::SLIDER)
     {
-        d.print("Value:");
+        d.setTextSize(2);
+        d.setCursor(0, 0);
+        d.print("SLIDER");
+
+        d.setTextSize(1);
+
+        d.setCursor(0, 24);
+        d.print("Servo:");
         d.print(currentValue);
 
-        d.setCursor(0, 45);
-        d.print("Angle:");
+        d.setCursor(70, 24);
+        d.print("Ang:");
 
         int a = servoRel(angle);
+
         if (a >= 0)
             d.print("+");
+
         d.print(a);
+
+        d.setCursor(0, 40);
+        d.print("FWD:");
+        d.print(pwm1);
+
+        d.setCursor(70, 40);
+        d.print("REV:");
+        d.print(pwm2);
     }
     else
     {
@@ -168,17 +199,51 @@ void DisplayOled::drawRun(const RuntimeSettings &rt,
     d.display();
 }
 
-void DisplayOled::drawMainMenu(const Menu &menu, const RuntimeSettings &edit, const Playback &playback)
+void DisplayOled::drawMainMenu(
+    const Menu &menu,
+    const RuntimeSettings &edit,
+    const Playback &playback)
 {
-    static const char *names[] = {"Input Mode", "DMX Address", "Playback", "Servo Setup", "EXIT", "SAVE"};
+    static const char *names[] = {
+        "Input Mode",
+        "DMX Address",
+        "Playback",
+        "Servo",
+        "Motor PWM",
+        "EXIT",
+        "SAVE"};
 
     clearAndHome();
     d.setTextSize(1);
 
-    for (int i = 0; i < Menu::ITEM_COUNT; i++)
+    const int visibleRows = 5;
+    int selected = menu.mainIndex();
+
+    int start = selected - 2;
+
+    if (start < 0)
+        start = 0;
+
+    if (start > Menu::ITEM_COUNT - visibleRows)
+        start = Menu::ITEM_COUNT - visibleRows;
+
+    if (start < 0)
+        start = 0;
+
+    for (int row = 0; row < visibleRows; row++)
     {
-        d.setCursor(0, i * 11);
-        d.print((i == menu.mainIndex()) ? ">" : " ");
+        int i = start + row;
+
+        if (i >= Menu::ITEM_COUNT)
+            break;
+
+        d.setCursor(0, row * 12);
+
+        d.print(
+            (i == selected)
+                ? ">"
+                : " ");
+
         d.print(names[i]);
 
         if (i == Menu::ITEM_INPUT_MODE)
@@ -194,7 +259,10 @@ void DisplayOled::drawMainMenu(const Menu &menu, const RuntimeSettings &edit, co
         else if (i == Menu::ITEM_PLAYBACK)
         {
             uint8_t recCount = 0;
-            for (uint8_t s = 0; s < PLAYBACK_SLOTS; ++s)
+
+            for (uint8_t s = 0;
+                 s < PLAYBACK_SLOTS;
+                 ++s)
             {
                 if (playback.isRecorded(s))
                     recCount++;
@@ -204,6 +272,32 @@ void DisplayOled::drawMainMenu(const Menu &menu, const RuntimeSettings &edit, co
             d.print(recCount);
             d.print("/");
             d.print(PLAYBACK_SLOTS);
+        }
+        else if (i == Menu::ITEM_SERVO_SETUP)
+        {
+            int minRel = servoRel(edit.servoMin);
+            int maxRel = servoRel(edit.servoMax);
+
+            d.print(": ");
+
+            if (minRel >= 0)
+                d.print("+");
+
+            d.print(minRel);
+
+            d.print("/");
+
+            if (maxRel >= 0)
+                d.print("+");
+
+            d.print(maxRel);
+        }
+        else if (i == Menu::ITEM_MOTOR_PWM)
+        {
+            d.print(": ");
+            d.print(edit.pwmMin);
+            d.print("-");
+            d.print(edit.pwmMax);
         }
     }
 
@@ -359,6 +453,73 @@ void DisplayOled::drawEditServoMax(const RuntimeSettings &edit)
     d.setTextSize(1);
     d.setCursor(0, 54);
     d.print("+/-  START=Back");
+
+    d.display();
+}
+
+void DisplayOled::drawMotorPwmSetup(
+    const RuntimeSettings &edit,
+    uint8_t index)
+{
+    clearAndHome();
+    d.setTextSize(1);
+
+    d.println("MOTOR PWM");
+
+    d.setCursor(0, 16);
+    d.print(index == 0 ? ">" : " ");
+    d.print("MIN: ");
+    d.print(edit.pwmMin);
+
+    d.setCursor(0, 28);
+    d.print(index == 1 ? ">" : " ");
+    d.print("MAX: ");
+    d.print(edit.pwmMax);
+
+    d.setCursor(0, 40);
+    d.print(index == 2 ? ">" : " ");
+    d.print("BACK");
+
+    d.setCursor(0, 56);
+    d.print("+/- START=Select");
+
+    d.display();
+}
+
+void DisplayOled::drawEditPwmMin(
+    const RuntimeSettings &edit)
+{
+    clearAndHome();
+
+    d.setTextSize(1);
+    d.println("EDIT PWM MIN");
+
+    d.setCursor(0, 20);
+    d.setTextSize(2);
+    d.println(edit.pwmMin);
+
+    d.setTextSize(1);
+    d.setCursor(0, 54);
+    d.print("+/- START=Back");
+
+    d.display();
+}
+
+void DisplayOled::drawEditPwmMax(
+    const RuntimeSettings &edit)
+{
+    clearAndHome();
+
+    d.setTextSize(1);
+    d.println("EDIT PWM MAX");
+
+    d.setCursor(0, 20);
+    d.setTextSize(2);
+    d.println(edit.pwmMax);
+
+    d.setTextSize(1);
+    d.setCursor(0, 54);
+    d.print("+/- START=Back");
 
     d.display();
 }

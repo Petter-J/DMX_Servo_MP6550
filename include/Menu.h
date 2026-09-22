@@ -1,4 +1,5 @@
 #pragma once
+
 #include <Arduino.h>
 #include "Config.h"
 
@@ -11,6 +12,7 @@ public:
         ITEM_DMX_ADDRESS,
         ITEM_PLAYBACK,
         ITEM_SERVO_SETUP,
+        ITEM_MOTOR_PWM,
         ITEM_EXIT,
         ITEM_SAVE,
         ITEM_COUNT
@@ -18,18 +20,32 @@ public:
 
     void begin();
     void enterMain();
-    void updateMainNavigation(bool plus, bool minus);
-    uint8_t mainIndex() const { return mainIdx; }
+
+    void updateMainNavigation(
+        bool plus,
+        bool minus);
+
+    uint8_t mainIndex() const
+    {
+        return mainIdx;
+    }
 
     void enterPlaybackRecList();
-    void updatePlaybackRecNavigation(bool plus, bool minus);
+
+    void updatePlaybackRecNavigation(
+        bool plus,
+        bool minus);
+
     bool playbackRecIsBack() const;
-    uint8_t playbackRecSlotIndex() const; // 0..PLAYBACK_SLOTS-1
+
+    uint8_t playbackRecSlotIndex() const;
+
+    int recIndex() const
+    {
+        return recIdx;
+    }
 
 private:
     uint8_t mainIdx = 0;
-    int recIdx = 0; // 0..PLAYBACK_SLOTS, där PLAYBACK_SLOTS = BACK
-
-public:
-    int recIndex() const { return recIdx; }
+    int recIdx = 0;
 };
