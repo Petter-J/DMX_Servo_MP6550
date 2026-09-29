@@ -113,6 +113,29 @@ void App::begin()
     Serial.begin(115200);
 
     buttons.begin();
+    ui.begin();
+
+    delay(50);
+
+    // Håll STOP intryckt vid uppstart
+    // för att gå direkt till OTA-läge.
+    if (digitalRead(BTN_STOP_PIN) == LOW)
+    {
+        ota_begin();
+
+        ui.drawOtaMode(
+            "DMX_Servo_MP6550_OTA",
+            "192.168.4.1");
+
+        while (ota_is_active())
+        {
+            ota_handle();
+            delay(1);
+        }
+
+        return;
+    }
+
     settingsStore.begin();
 
     runtime = settingsStore.load();
@@ -121,7 +144,7 @@ void App::begin()
     menu.begin();
     transport.begin();
     inputs.begin();
-    ui.begin();
+
     playback.begin();
     playback.loadAllFromFlash();
 
@@ -140,6 +163,13 @@ void App::begin()
         lastAngle,
         lastPwm1,
         lastPwm2,
+        sliderValue,
+        sliderAngle,
+        sliderPwm1,
+        sliderPwm2,
+        sliderActive,
+        inputs.dmxOk(),
+        transport.linkOk(),
         playback.isPlaying(),
         shownPb,
         playback.playbackSecondsRemaining(),
@@ -153,6 +183,39 @@ void App::begin()
 void App::tick()
 {
     buttons.update();
+
+    // Håll STOP i 5 sekunder under normal drift
+    // för att gå över till OTA-läge.
+    if (buttons.stopLong5s)
+    {
+        transport.send(
+            lastAngle,
+            0,
+            0,
+            false);
+
+        playback.stopPlaying();
+
+        delay(100);
+
+        esp_now_deinit();
+
+        delay(100);
+
+        ota_begin();
+
+        ui.drawOtaMode(
+            "DMX_Servo_MP6550_OTA",
+            "192.168.4.1");
+
+        while (ota_is_active())
+        {
+            ota_handle();
+            delay(1);
+        }
+
+        return;
+    }
 
     switch (state)
     {
@@ -220,6 +283,28 @@ void App::handleRun()
             requireReleaseAfterMenu = false;
     }
 
+    if (runtime.inputMode == InputMode::SLIDER)
+    {
+        if (buttons.startShort)
+        {
+            sliderActive = true;
+        }
+
+        if (buttons.stopShort)
+        {
+            sliderActive = false;
+
+            lastPwm1 = 0;
+            lastPwm2 = 0;
+
+            transport.send(
+                lastAngle,
+                0,
+                0,
+                false);
+        }
+    }
+  
     if (runtime.inputMode == InputMode::PLAYBACK)
     {
         if (!requireReleaseAfterMenu &&
@@ -314,6 +399,13 @@ void App::handleRun()
         lastAngle,
         lastPwm1,
         lastPwm2,
+        sliderValue,
+        sliderAngle,
+        sliderPwm1,
+        sliderPwm2,
+        sliderActive,
+        inputs.dmxOk(),
+        transport.linkOk(),
         playback.isPlaying(),
         shownPb,
         playback.playbackSecondsRemaining(),
@@ -347,8 +439,8 @@ void App::handleMenuMain()
     }
 
     menu.updateMainNavigation(
-        buttons.plusShort,
-        buttons.minusShort);
+        buttons.minusShort,
+        buttons.plusShort);
 
     if (buttons.startShort)
     {
@@ -389,6 +481,20 @@ void App::handleMenuMain()
         {
             runtime = edit;
 
+            if (runtime.inputMode == InputMode::SLIDER)
+            {
+                sliderActive = false;
+
+                lastPwm1 = 0;
+                lastPwm2 = 0;
+
+                transport.send(
+                    lastAngle,
+                    0,
+                    0,
+                    false);
+            }
+
             playback.stopPlaying();
 
             requireReleaseAfterMenu = true;
@@ -400,6 +506,20 @@ void App::handleMenuMain()
             Menu::ITEM_SAVE)
         {
             runtime = edit;
+
+            if (runtime.inputMode == InputMode::SLIDER)
+            {
+                sliderActive = false;
+
+                lastPwm1 = 0;
+                lastPwm2 = 0;
+
+                transport.send(
+                    lastAngle,
+                    0,
+                    0,
+                    false);
+            }
 
             playback.stopPlaying();
 
@@ -575,8 +695,8 @@ void App::handleEditDmx()
 void App::handlePlaybackRecList()
 {
     menu.updatePlaybackRecNavigation(
-        buttons.plusShort,
-        buttons.minusShort);
+        buttons.minusShort,
+        buttons.plusShort);
 
     if (buttons.startShort &&
         menu.playbackRecIsBack())
@@ -763,19 +883,53 @@ void App::sendCurrentValue()
         runtime.inputMode ==
         InputMode::SLIDER)
     {
-        servoValue =
+        // Läs alltid servo-regeln
+        sliderValue =
             inputs.readSlider();
 
+        sliderAngle =
+            valueToServoAngle(
+                sliderValue,
+                runtime.servoMin,
+                runtime.servoMax);
+
+        // Läs alltid motor-regeln
         uint8_t motorValue =
             inputs.readPwmSlider();
+
+        bool sliderMotorEnable = false;
 
         motorFromSlider(
             motorValue,
             runtime.pwmMin,
             runtime.pwmMax,
-            pwm1,
-            pwm2,
-            motorEnable);
+            sliderPwm1,
+            sliderPwm2,
+            sliderMotorEnable);
+
+        // Om SLIDER är OFF:
+        // visa reglarna på displayen men skicka inget nytt
+        if (!sliderActive)
+        {
+            lastPwm1 = 0;
+            lastPwm2 = 0;
+
+            transport.send(
+                lastAngle,
+                0,
+                0,
+                false);
+
+            return;
+        }
+
+        // SLIDER är ON:
+        // nu blir slider-värdena de verkliga utgående värdena
+        servoValue = sliderValue;
+
+        pwm1 = sliderPwm1;
+        pwm2 = sliderPwm2;
+        motorEnable = sliderMotorEnable;
     }
 
     // ==================================================
@@ -821,13 +975,13 @@ void App::sendCurrentValue()
 
 void App::handleServoSetup()
 {
-    if (buttons.plusShort)
+    if (buttons.minusShort)
     {
         servoSetupIndex =
             (servoSetupIndex + 1) % 3;
     }
 
-    if (buttons.minusShort)
+    if (buttons.plusShort)
     {
         servoSetupIndex =
             (servoSetupIndex + 2) % 3;
@@ -1055,13 +1209,13 @@ void App::handleEditServoMax()
 
 void App::handleMotorPwmSetup()
 {
-    if (buttons.plusShort)
+    if (buttons.minusShort)
     {
         motorPwmSetupIndex =
             (motorPwmSetupIndex + 1) % 3;
     }
 
-    if (buttons.minusShort)
+    if (buttons.plusShort)
     {
         motorPwmSetupIndex =
             (motorPwmSetupIndex + 2) % 3;

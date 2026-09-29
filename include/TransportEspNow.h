@@ -23,10 +23,17 @@ public:
         uint8_t pwm2,
         bool enable);
 
+    bool linkOk() const;
+
 private:
     uint8_t receiverMac[6] = {0x3C,0x0F,0x02,0xE4,0xCD,0x58};
 
     ControlData p{};
+
+    static volatile bool lastSendSuccess;
+    static volatile uint32_t lastSendMs;
+
+    static constexpr uint32_t LINK_TIMEOUT_MS = 1500;
 
     static void onSent(
         const uint8_t *mac,

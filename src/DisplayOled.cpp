@@ -1,5 +1,7 @@
 #include "DisplayOled.h"
 #include "Config.h"
+#include <res/qw_fnt_5x7.h>
+#include <res/qw_fnt_8x16.h>
 
 static int servoRel(uint8_t angle)
 {
@@ -23,8 +25,7 @@ const char *DisplayOled::modeName(InputMode m) const
 
 void DisplayOled::clearAndHome()
 {
-    d.clearDisplay();
-    d.setCursor(0, 0);
+    d.erase();
 }
 
 void DisplayOled::begin()
@@ -32,168 +33,324 @@ void DisplayOled::begin()
     Wire.begin(21, 22);
     Wire.setTimeOut(50);
 
-    if (!d.begin(0x3C, true))
+    if (d.begin(Wire, 0x3D) == false)
     {
-        Serial.println("SH1106 init failed");
+        Serial.println("SparkFun OLED init failed");
+
         while (true)
             delay(100);
     }
 
-    d.setTextColor(SH110X_WHITE);
-    d.setTextSize(1);
-    clearAndHome();
-    d.println("OLED OK (SH1106)");
+    d.erase();
+
+    d.text(
+        0,
+        0,
+        "OLED OK",
+        1);
+
     d.display();
+
     delay(300);
 }
-
 void DisplayOled::drawRun(const RuntimeSettings &rt,
                           uint8_t currentValue,
                           uint8_t angle,
                           uint8_t pwm1,
                           uint8_t pwm2,
+                          uint8_t sliderValue,
+                          uint8_t sliderAngle,
+                          uint8_t sliderPwm1,
+                          uint8_t sliderPwm2,
+                          bool sliderActive,
+                          bool dmxOk,
+                          bool espNowOk,
                           bool pbPlaying,
                           uint8_t pbSlot1to9,
                           uint32_t pbRemainSec,
                           uint32_t pbSlotSec)
 {
-    d.clearDisplay();
-    d.setTextColor(SH110X_WHITE);
-
-    d.setTextSize(2);
-    d.setCursor(0, 0);
-
-    switch (rt.inputMode)
-    {
-    case InputMode::DMX:
-        break;
-    case InputMode::SLIDER:
-        d.print("SLIDER");
-        break;
-    case InputMode::PLAYBACK:
-        d.print("PLAYBACK");
-        if (pbPlaying)
-        {
-            d.print(" ");
-            d.print(pbSlot1to9);
-        }
-        break;
-    default:
-        d.print("?");
-        break;
-    }
-
-    d.setTextSize(2);
-    d.setCursor(0, 22);
+    d.erase();
 
     if (rt.inputMode == InputMode::DMX)
     {
-        d.setTextSize(2);
-        d.setCursor(0, 0);
-        d.print("DMX ");
-        d.print(rt.dmxAddress);
+        // Stor DMX-rubrik
+        d.setFont(&QW_FONT_8X16);
 
-        d.setTextSize(1);
+        String title =
+            String("DMX ") +
+            String(rt.dmxAddress) +
+            "-" +
+            String(rt.dmxAddress + 2);
 
-        d.setCursor(0, 24);
-        d.print("Servo:");
-        d.print(currentValue);
+        d.text(
+            0,
+            0,
+            title,
+            1);
 
-        d.setCursor(70, 24);
-        d.print("Ang:");
+        // Liten OK / LOST längst till höger
+        d.setFont(&QW_FONT_5X7);
+
+        String statusText =
+            dmxOk
+                ? "OK"
+                : "LOST";
+
+        d.text(
+            dmxOk ? 110 : 98,
+            4,
+            statusText,
+            1);
+
+        String servoText =
+            String("Servo:") +
+            String(currentValue);
+
+        d.text(0, 24, servoText, 1);
 
         int a = servoRel(angle);
 
+        String angleText = "Ang:";
+
         if (a >= 0)
-            d.print("+");
+            angleText += "+";
 
-        d.print(a);
+        angleText += String(a);
 
-        d.setCursor(0, 40);
-        d.print("FWD:");
-        d.print(pwm1);
+        d.text(70, 24, angleText, 1);
 
-        d.setCursor(70, 40);
-        d.print("REV:");
-        d.print(pwm2);
+        String fwdText =
+            String("FWD:") +
+            String(pwm1);
+
+        String revText =
+            String("REV:") +
+            String(pwm2);
+
+        d.text(0, 40, fwdText, 1);
+        d.text(70, 40, revText, 1);
     }
     else if (rt.inputMode == InputMode::SLIDER)
     {
-        d.setTextSize(2);
-        d.setCursor(0, 0);
-        d.print("SLIDER");
+        d.erase();
 
-        d.setTextSize(1);
+        d.line(
+            78,
+            0,
+            78,
+            63,
+            1);
 
-        d.setCursor(0, 24);
-        d.print("Servo:");
-        d.print(currentValue);
+        // STOR rubrik
+        d.setFont(&QW_FONT_8X16);
 
-        d.setCursor(70, 24);
-        d.print("Ang:");
+        String title = "SLIDER";
+        d.text(0, 0, title, 1);
 
-        int a = servoRel(angle);
+        String stateText =
+            sliderActive ? "ON" : "OFF";
 
-        if (a >= 0)
-            d.print("+");
+        d.text(88, 0, stateText, 1);
 
-        d.print(a);
+        // LITEN text från och med här
+        d.setFont(&QW_FONT_5X7);
 
-        d.setCursor(0, 40);
-        d.print("FWD:");
-        d.print(pwm1);
+        // -----------------------------
+        // SERVO
+        // Vänster = slider
+        // Höger  = faktiskt
+        // -----------------------------
 
-        d.setCursor(70, 40);
-        d.print("REV:");
-        d.print(pwm2);
+        String servoLeft =
+            String("Servo: ") +
+            String(sliderValue);
+
+        d.text(
+            0,
+            18,
+            servoLeft,
+            1);
+
+        String servoRight =
+            String(currentValue);
+
+        d.text(
+            86,
+            18,
+            servoRight,
+            1);
+
+        // -----------------------------
+        // ANGLE
+        // -----------------------------
+
+        int sliderRel =
+            servoRel(sliderAngle);
+
+        String angleLeft =
+            "Ang: ";
+
+        if (sliderRel >= 0)
+            angleLeft += "+";
+
+        angleLeft +=
+            String(sliderRel);
+
+        d.text(
+            0,
+            30,
+            angleLeft,
+            1);
+
+        int actualRel =
+            servoRel(angle);
+
+        String angleRight;
+
+        if (actualRel >= 0)
+            angleRight = "+";
+
+        angleRight +=
+            String(actualRel);
+
+        d.text(
+            86,
+            30,
+            angleRight,
+            1);
+
+        // -----------------------------
+        // MOTOR FWR
+        // -----------------------------
+
+        String fwdLeft =
+            String("FWR: ") +
+            String(sliderPwm1);
+
+        d.text(
+            0,
+            42,
+            fwdLeft,
+            1);
+
+        String fwdRight =
+            String(pwm1);
+
+        d.text(
+            86,
+            42,
+            fwdRight,
+            1);
+
+        // -----------------------------
+        // MOTOR REV
+        // -----------------------------
+
+        String revLeft =
+            String("REV: ") +
+            String(sliderPwm2);
+
+        d.text(
+            0,
+            54,
+            revLeft,
+            1);
+
+        String revRight =
+            String(pwm2);
+
+        d.text(
+            86,
+            54,
+            revRight,
+            1);
     }
     else
     {
+        d.setFont(&QW_FONT_8X16);
 
-        d.setTextSize(2);
-        d.setCursor(0, 22);
+        String title = "PLAYBACK";
+
+        if (pbPlaying)
+        {
+            title += " ";
+            title += String(pbSlot1to9);
+        }
+
+        d.text(0, 0, title, 1);
+
+        d.setFont(&QW_FONT_5X7);
 
         char totalBuf[8];
-        snprintf(totalBuf, sizeof(totalBuf), "%lu:%02lu",
-                 pbSlotSec / 60,
-                 pbSlotSec % 60);
+
+        snprintf(
+            totalBuf,
+            sizeof(totalBuf),
+            "%lu:%02lu",
+            pbSlotSec / 60,
+            pbSlotSec % 60);
 
         if (pbPlaying)
         {
             char leftBuf[8];
-            snprintf(leftBuf, sizeof(leftBuf), "%lu:%02lu",
-                     pbRemainSec / 60,
-                     pbRemainSec % 60);
 
-            d.setTextSize(2);
+            snprintf(
+                leftBuf,
+                sizeof(leftBuf),
+                "%lu:%02lu",
+                pbRemainSec / 60,
+                pbRemainSec % 60);
 
-            d.setCursor(0, 22);
-            d.print("Left:");
-            d.print(leftBuf);
+            String leftText =
+                String("Left:") +
+                String(leftBuf);
 
-            d.setCursor(0, 45);
-            d.print("PB:");
-            d.print(rt.selectedPlayback);
-            d.print(" ");
-            d.print(totalBuf);
+            d.text(0, 24, leftText, 1);
+
+            String pbText =
+                String("PB:") +
+                String(rt.selectedPlayback) +
+                String(" ") +
+                String(totalBuf);
+
+            d.text(0, 40, pbText, 1);
         }
         else
         {
-            d.setTextSize(2);
+            String pbText =
+                String("PB:") +
+                String(rt.selectedPlayback) +
+                String(" ") +
+                String(totalBuf);
 
-            d.setCursor(0, 22);
-            d.print("PB:");
-            d.print(rt.selectedPlayback);
-            d.print(" ");
-            d.print(totalBuf);
+            d.text(0, 24, pbText, 1);
 
-            d.setTextSize(1);
-            d.setCursor(0, 45);
-            d.print("CHOOSE PB: +/-");
+            d.text(
+                0,
+                42,
+                "CHOOSE PB: +/-",
+                1);
 
-            d.setCursor(0, 56);
-            d.print("START/STOP:PB ON/OFF");
+            d.text(
+                0,
+                54,
+                "START/STOP: PB",
+                1);
         }
+    }
+
+    if (espNowOk)
+    {
+        d.setFont(&QW_FONT_5X7);
+
+        String espStatus = "OK";
+
+        d.text(
+            116,
+            56,
+            espStatus,
+            1);
     }
 
     d.display();
@@ -213,8 +370,7 @@ void DisplayOled::drawMainMenu(
         "EXIT",
         "SAVE"};
 
-    clearAndHome();
-    d.setTextSize(1);
+    d.erase();
 
     const int visibleRows = 5;
     int selected = menu.mainIndex();
@@ -237,24 +393,22 @@ void DisplayOled::drawMainMenu(
         if (i >= Menu::ITEM_COUNT)
             break;
 
-        d.setCursor(0, row * 12);
-
-        d.print(
+        String line =
             (i == selected)
                 ? ">"
-                : " ");
+                : " ";
 
-        d.print(names[i]);
+        line += names[i];
 
         if (i == Menu::ITEM_INPUT_MODE)
         {
-            d.print(": ");
-            d.print(modeName(edit.inputMode));
+            line += ": ";
+            line += modeName(edit.inputMode);
         }
         else if (i == Menu::ITEM_DMX_ADDRESS)
         {
-            d.print(": ");
-            d.print(edit.dmxAddress);
+            line += ": ";
+            line += String(edit.dmxAddress);
         }
         else if (i == Menu::ITEM_PLAYBACK)
         {
@@ -268,191 +422,329 @@ void DisplayOled::drawMainMenu(
                     recCount++;
             }
 
-            d.print(": ");
-            d.print(recCount);
-            d.print("/");
-            d.print(PLAYBACK_SLOTS);
+            line += ": ";
+            line += String(recCount);
+            line += "/";
+            line += String(PLAYBACK_SLOTS);
         }
         else if (i == Menu::ITEM_SERVO_SETUP)
         {
-            int minRel = servoRel(edit.servoMin);
-            int maxRel = servoRel(edit.servoMax);
+            int minRel =
+                servoRel(edit.servoMin);
 
-            d.print(": ");
+            int maxRel =
+                servoRel(edit.servoMax);
+
+            line += ": ";
 
             if (minRel >= 0)
-                d.print("+");
+                line += "+";
 
-            d.print(minRel);
-
-            d.print("/");
+            line += String(minRel);
+            line += "/";
 
             if (maxRel >= 0)
-                d.print("+");
+                line += "+";
 
-            d.print(maxRel);
+            line += String(maxRel);
         }
         else if (i == Menu::ITEM_MOTOR_PWM)
         {
-            d.print(": ");
-            d.print(edit.pwmMin);
-            d.print("-");
-            d.print(edit.pwmMax);
+            line += ": ";
+            line += String(edit.pwmMin);
+            line += "-";
+            line += String(edit.pwmMax);
         }
+
+        d.text(
+            0,
+            row * 12,
+            line,
+            1);
     }
 
     d.display();
 }
 
-void DisplayOled::drawEditInput(const RuntimeSettings &edit)
+void DisplayOled::drawEditInput(
+    const RuntimeSettings &edit)
 {
-    clearAndHome();
-    d.setTextSize(1);
+    d.erase();
 
-    d.println("EDIT Input");
-    d.setCursor(0, 16);
-    d.println(modeName(edit.inputMode));
+    d.text(
+        0,
+        0,
+        "EDIT Input",
+        1);
 
-    d.setCursor(0, 54);
-    d.print("+/-  START=Back");
+    d.text(
+        0,
+        16,
+        modeName(edit.inputMode),
+        1);
+
+    d.text(
+        0,
+        54,
+        "+/-  START=Back",
+        1);
+
     d.display();
 }
 
 void DisplayOled::drawEditDmx(const RuntimeSettings &edit)
 {
-    clearAndHome();
-    d.setTextSize(1);
+    d.erase();
 
-    d.println("EDIT DMX Address");
-    d.setCursor(0, 16);
-    d.println(edit.dmxAddress);
+    d.text(
+        0,
+        0,
+        "EDIT DMX Address",
+        1);
 
-    d.setCursor(0, 54);
-    d.print("+/-  START=Back");
+    String dmxText = String(edit.dmxAddress);
+
+    d.text(
+        0,
+        16,
+        dmxText,
+        1);
+
+    d.text(
+        0,
+        54,
+        "+/-  START=Back",
+        1);
+
     d.display();
 }
 
-void DisplayOled::drawPlaybackRecList(const Menu &menu, const Playback &playback)
+void DisplayOled::drawPlaybackRecList(
+    const Menu &menu,
+    const Playback &playback)
 {
-    clearAndHome();
-    d.setTextSize(1);
-    d.println("Playback REC");
+    d.erase();
+
+    d.text(
+        0,
+        0,
+        "Playback REC",
+        1);
 
     int idx = menu.recIndex();
-    int maxIdx = PLAYBACK_SLOTS; // sista = BACK
+    int maxIdx = PLAYBACK_SLOTS;
     int start = max(0, idx - 1);
     int end = min(maxIdx, start + 3);
     int row = 0;
 
     for (int i = start; i <= end; i++)
     {
-        d.setCursor(0, 12 + row * 12);
-        d.print((i == idx) ? ">" : " ");
+        String line =
+            (i == idx)
+                ? ">"
+                : " ";
 
         if (i < PLAYBACK_SLOTS)
         {
-            d.print("Slot ");
-            d.print(i + 1);
+            line += "Slot ";
+            line += String(i + 1);
 
             if (playback.isRecorded(i))
             {
-                uint32_t sec = playback.slotSeconds(i);
+                uint32_t sec =
+                    playback.slotSeconds(i);
 
                 char buf[8];
-                snprintf(buf, sizeof(buf), "%lu:%02lu", sec / 60, sec % 60);
 
-                d.print("  ");
-                d.print(buf);
+                snprintf(
+                    buf,
+                    sizeof(buf),
+                    "%lu:%02lu",
+                    sec / 60,
+                    sec % 60);
+
+                line += "  ";
+                line += buf;
             }
         }
         else
         {
-            d.print("BACK");
+            line += "BACK";
         }
+
+        d.text(
+            0,
+            12 + row * 12,
+            line,
+            1);
+
         row++;
     }
 
     d.display();
 }
 
-void DisplayOled::drawRecording(uint8_t slot, uint32_t recSec)
+void DisplayOled::drawRecording(
+    uint8_t slot,
+    uint32_t recSec)
 {
-    clearAndHome();
-    d.setTextSize(1);
+    d.erase();
 
-    d.print("RECORDING Slot ");
-    d.println(slot + 1);
+    String title =
+        String("RECORDING Slot ") +
+        String(slot + 1);
 
-    d.setCursor(0, 16);
-    d.print("Time: ");
+    d.text(
+        0,
+        0,
+        title,
+        1);
 
     char buf[8];
-    snprintf(buf, sizeof(buf), "%lu:%02lu", recSec / 60, recSec % 60);
-    d.println(buf);
 
-    d.setCursor(0, 54);
-    d.println("STOP to stop");
+    snprintf(
+        buf,
+        sizeof(buf),
+        "%lu:%02lu",
+        recSec / 60,
+        recSec % 60);
 
-    d.display();
-}
+    String timeText =
+        String("Time: ") +
+        String(buf);
 
-void DisplayOled::drawServoSetup(const RuntimeSettings &edit, uint8_t index)
-{
-    clearAndHome();
-    d.setTextSize(1);
+    d.text(
+        0,
+        16,
+        timeText,
+        1);
 
-    d.println("SERVO SETUP");
-
-    d.setCursor(0, 16);
-    d.print(index == 0 ? ">" : " ");
-    d.print(servoRel(edit.servoMin));
-
-    d.setCursor(0, 28);
-    d.print(index == 1 ? ">" : " ");
-    d.print("+");
-    d.print(servoRel(edit.servoMax));
-
-    d.setCursor(0, 40);
-    d.print(index == 2 ? ">" : " ");
-    d.print("BACK");
-
-    d.setCursor(0, 56);
-    d.print("+/- START=Select");
+    d.text(
+        0,
+        54,
+        "STOP to stop",
+        1);
 
     d.display();
 }
 
-void DisplayOled::drawEditServoMin(const RuntimeSettings &edit)
+void DisplayOled::drawServoSetup(
+    const RuntimeSettings &edit,
+    uint8_t index)
 {
-    clearAndHome();
-    d.setTextSize(1);
+    d.erase();
 
-    d.println("EDIT SERVO MIN");
-    d.setCursor(0, 20);
-    d.setTextSize(2);
-    d.println(servoRel(edit.servoMin));
+    d.text(
+        0,
+        0,
+        "SERVO SETUP",
+        1);
 
-    d.setTextSize(1);
-    d.setCursor(0, 54);
-    d.print("+/-  START=Back");
+    String minLine =
+        (index == 0)
+            ? ">"
+            : " ";
+
+    minLine += String(
+        servoRel(edit.servoMin));
+
+    d.text(
+        0,
+        16,
+        minLine,
+        1);
+
+    String maxLine =
+        (index == 1)
+            ? ">"
+            : " ";
+
+    maxLine += "+";
+    maxLine += String(
+        servoRel(edit.servoMax));
+
+    d.text(
+        0,
+        28,
+        maxLine,
+        1);
+
+    String backLine =
+        (index == 2)
+            ? ">BACK"
+            : " BACK";
+
+    d.text(
+        0,
+        40,
+        backLine,
+        1);
+
+    d.text(
+        0,
+        56,
+        "+/- START=Select",
+        1);
 
     d.display();
 }
 
-void DisplayOled::drawEditServoMax(const RuntimeSettings &edit)
+void DisplayOled::drawEditServoMin(
+    const RuntimeSettings &edit)
 {
-    clearAndHome();
-    d.setTextSize(1);
+    d.erase();
 
-    d.println("EDIT SERVO MAX");
-    d.setCursor(0, 20);
-    d.setTextSize(2);
-    d.print("+");
-    d.println(servoRel(edit.servoMax));
+    d.text(
+        0,
+        0,
+        "EDIT SERVO MIN",
+        1);
 
-    d.setTextSize(1);
-    d.setCursor(0, 54);
-    d.print("+/-  START=Back");
+    String servoMinText =
+        String(servoRel(edit.servoMin));
+
+    d.text(
+        0,
+        20,
+        servoMinText,
+        2);
+
+    d.text(
+        0,
+        54,
+        "+/-  START=Back",
+        1);
+
+    d.display();
+}
+
+void DisplayOled::drawEditServoMax(
+    const RuntimeSettings &edit)
+{
+    d.erase();
+
+    d.text(
+        0,
+        0,
+        "EDIT SERVO MAX",
+        1);
+
+    String value = "+";
+
+    value += String(
+        servoRel(edit.servoMax));
+
+    d.text(
+        0,
+        20,
+        value,
+        2);
+
+    d.text(
+        0,
+        54,
+        "+/-  START=Back",
+        1);
 
     d.display();
 }
@@ -461,27 +753,58 @@ void DisplayOled::drawMotorPwmSetup(
     const RuntimeSettings &edit,
     uint8_t index)
 {
-    clearAndHome();
-    d.setTextSize(1);
+    d.erase();
 
-    d.println("MOTOR PWM");
+    d.text(
+        0,
+        0,
+        "MOTOR PWM",
+        1);
 
-    d.setCursor(0, 16);
-    d.print(index == 0 ? ">" : " ");
-    d.print("MIN: ");
-    d.print(edit.pwmMin);
+    String minLine =
+        (index == 0)
+            ? ">"
+            : " ";
 
-    d.setCursor(0, 28);
-    d.print(index == 1 ? ">" : " ");
-    d.print("MAX: ");
-    d.print(edit.pwmMax);
+    minLine += "MIN: ";
+    minLine += String(edit.pwmMin);
 
-    d.setCursor(0, 40);
-    d.print(index == 2 ? ">" : " ");
-    d.print("BACK");
+    d.text(
+        0,
+        16,
+        minLine,
+        1);
 
-    d.setCursor(0, 56);
-    d.print("+/- START=Select");
+    String maxLine =
+        (index == 1)
+            ? ">"
+            : " ";
+
+    maxLine += "MAX: ";
+    maxLine += String(edit.pwmMax);
+
+    d.text(
+        0,
+        28,
+        maxLine,
+        1);
+
+    String backLine =
+        (index == 2)
+            ? ">BACK"
+            : " BACK";
+
+    d.text(
+        0,
+        40,
+        backLine,
+        1);
+
+    d.text(
+        0,
+        56,
+        "+/- START=Select",
+        1);
 
     d.display();
 }
@@ -489,18 +812,28 @@ void DisplayOled::drawMotorPwmSetup(
 void DisplayOled::drawEditPwmMin(
     const RuntimeSettings &edit)
 {
-    clearAndHome();
+    d.erase();
 
-    d.setTextSize(1);
-    d.println("EDIT PWM MIN");
+    d.text(
+        0,
+        0,
+        "EDIT PWM MIN",
+        1);
 
-    d.setCursor(0, 20);
-    d.setTextSize(2);
-    d.println(edit.pwmMin);
+    String pwmMinText =
+        String(edit.pwmMin);
 
-    d.setTextSize(1);
-    d.setCursor(0, 54);
-    d.print("+/- START=Back");
+    d.text(
+        0,
+        20,
+        pwmMinText,
+        2);
+
+    d.text(
+        0,
+        54,
+        "+/- START=Back",
+        1);
 
     d.display();
 }
@@ -508,18 +841,76 @@ void DisplayOled::drawEditPwmMin(
 void DisplayOled::drawEditPwmMax(
     const RuntimeSettings &edit)
 {
-    clearAndHome();
+    d.erase();
 
-    d.setTextSize(1);
-    d.println("EDIT PWM MAX");
+    d.text(
+        0,
+        0,
+        "EDIT PWM MAX",
+        1);
 
-    d.setCursor(0, 20);
-    d.setTextSize(2);
-    d.println(edit.pwmMax);
+    String pwmMaxText =
+        String(edit.pwmMax);
 
-    d.setTextSize(1);
-    d.setCursor(0, 54);
-    d.print("+/- START=Back");
+    d.text(
+        0,
+        20,
+        pwmMaxText,
+        2);
+
+    d.text(
+        0,
+        54,
+        "+/- START=Back",
+        1);
+
+    d.display();
+}
+void DisplayOled::drawOtaMode(
+    const String &ssid,
+    const String &ip)
+{
+    d.erase();
+
+    // Stor rubrik
+    d.setFont(&QW_FONT_8X16);
+
+    String title = "OTA MODE";
+
+    d.text(
+        0,
+        0,
+        title,
+        1);
+
+    // Liten text
+    d.setFont(&QW_FONT_5X7);
+
+    String wifiLabel = "WiFi:";
+
+    d.text(
+        0,
+        20,
+        wifiLabel,
+        1);
+
+    String wifiName = ssid;
+
+    d.text(
+        0,
+        31,
+        wifiName,
+        1);
+
+    String ipLine =
+        String("IP: ") +
+        ip;
+
+    d.text(
+        0,
+        48,
+        ipLine,
+        1);
 
     d.display();
 }

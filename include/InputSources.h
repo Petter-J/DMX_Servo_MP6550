@@ -19,10 +19,17 @@ public:
     uint8_t readSlider();
     uint8_t readPwmSlider();
 
+    bool dmxOk() const;
+
 private:
     static constexpr uint8_t SLIDER_PIN =
         SLIDER_PIN_CFG;
 
     static constexpr uint8_t PWM_SLIDER_PIN =
         PWM_SLIDER_PIN_CFG;
+
+    uint32_t lastDmxPacketMs = 0;
+
+    static constexpr uint32_t
+        DMX_LOST_TIMEOUT_MS = 1500;
 };

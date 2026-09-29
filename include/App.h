@@ -8,6 +8,7 @@
 #include "InputSources.h"
 #include "DisplayOled.h"
 #include "Playback.h"
+#include "OtaUpdate.h"
 
 class App
 {
@@ -58,6 +59,14 @@ private:
     // Senaste motorvärden som skickats
     uint8_t lastPwm1 = 0;
     uint8_t lastPwm2 = 0;
+
+    uint8_t sliderValue = 0;
+    uint8_t sliderAngle = 90;
+
+    uint8_t sliderPwm1 = 0;
+    uint8_t sliderPwm2 = 0;
+
+    bool sliderActive = false;
 
     // Servo setup:
     // 0 = Min

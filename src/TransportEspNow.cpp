@@ -1,14 +1,22 @@
 #include "TransportEspNow.h"
 #include <esp_wifi.h>
 
+volatile bool TransportEspNow::lastSendSuccess = false;
+volatile uint32_t TransportEspNow::lastSendMs = 0;
+
 void TransportEspNow::onSent(
     const uint8_t *mac,
     esp_now_send_status_t status)
 {
     (void)mac;
 
+    lastSendSuccess =
+        (status == ESP_NOW_SEND_SUCCESS);
+
+    lastSendMs = millis();
+
     Serial.println(
-        status == ESP_NOW_SEND_SUCCESS
+        lastSendSuccess
             ? "ESP-NOW: OK"
             : "ESP-NOW: FAIL");
 }
@@ -75,4 +83,16 @@ void TransportEspNow::send(
             "send err=%d\n",
             static_cast<int>(r));
     }
+}
+
+bool TransportEspNow::linkOk() const
+{
+    if (!lastSendSuccess)
+        return false;
+
+    if (lastSendMs == 0)
+        return false;
+
+    return (millis() - lastSendMs) <
+           LINK_TIMEOUT_MS;
 }

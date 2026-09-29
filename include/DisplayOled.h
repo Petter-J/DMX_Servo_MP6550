@@ -2,8 +2,7 @@
 
 #include <Arduino.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SH110X.h>
+#include <SparkFun_Qwiic_OLED.h>
 
 #include "Settings.h"
 #include "Menu.h"
@@ -19,10 +18,21 @@ public:
                  uint8_t angle,
                  uint8_t pwm1,
                  uint8_t pwm2,
+                 uint8_t sliderValue,
+                 uint8_t sliderAngle,
+                 uint8_t sliderPwm1,
+                 uint8_t sliderPwm2,
+                 bool sliderActive,
+                 bool dmxOk,
+                 bool espNowOk,
                  bool pbPlaying,
                  uint8_t pbSlot1to9,
                  uint32_t pbRemainSec,
                  uint32_t pbSlotSec);
+
+    void drawOtaMode(
+        const String &ssid,
+        const String &ip);
 
     void drawRecording(
         uint8_t slot,
@@ -64,7 +74,7 @@ public:
         const RuntimeSettings &edit);
 
 private:
-    Adafruit_SH1106G d{128, 64, &Wire, -1};
+    Qwiic1in3OLED d;
 
     const char *modeName(InputMode m) const;
 

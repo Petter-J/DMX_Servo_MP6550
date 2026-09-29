@@ -55,6 +55,8 @@ uint8_t InputSources::readDmx(uint16_t address)
 
     if (packetSize > 0 && packet.err == DMX_OK)
     {
+        lastDmxPacketMs = millis();
+
         dmx_read(
             dmxPort,
             dmxData,
@@ -101,25 +103,32 @@ void InputSources::readDmx3(
         &packet,
         1);
 
-    if (packetSize > 0 && packet.err == DMX_OK)
+    if (packetSize > 0)
     {
-        dmx_read(
-            dmxPort,
-            dmxData,
-            packet.size);
+        // DMX-signal finns
+        lastDmxPacketMs = millis();
 
-        uint16_t servoIndex = address;
-        uint16_t pwm1Index = address + 1;
-        uint16_t pwm2Index = address + 2;
+        // Uppdatera värden bara om paketet är korrekt
+        if (packet.err == DMX_OK)
+        {
+            dmx_read(
+                dmxPort,
+                dmxData,
+                packet.size);
 
-        if (servoIndex < packet.size)
-            lastServo = dmxData[servoIndex];
+            uint16_t servoIndex = address;
+            uint16_t pwm1Index = address + 1;
+            uint16_t pwm2Index = address + 2;
 
-        if (pwm1Index < packet.size)
-            lastPwm1 = dmxData[pwm1Index];
+            if (servoIndex < packet.size)
+                lastServo = dmxData[servoIndex];
 
-        if (pwm2Index < packet.size)
-            lastPwm2 = dmxData[pwm2Index];
+            if (pwm1Index < packet.size)
+                lastPwm1 = dmxData[pwm1Index];
+
+            if (pwm2Index < packet.size)
+                lastPwm2 = dmxData[pwm2Index];
+        }
     }
 
     servo = lastServo;
@@ -137,4 +146,13 @@ uint8_t InputSources::readPwmSlider()
 {
     return static_cast<uint8_t>(
         analogRead(PWM_SLIDER_PIN));
+}
+
+bool InputSources::dmxOk() const
+{
+    if (lastDmxPacketMs == 0)
+        return false;
+
+    return (millis() - lastDmxPacketMs) <
+           DMX_LOST_TIMEOUT_MS;
 }
