@@ -341,9 +341,7 @@ void DisplayOled::drawEditDmx(const RuntimeSettings &edit)
     d.display();
 }
 
-void DisplayOled::drawPlaybackRecList(
-    const Menu &menu,
-    const Playback &playback)
+void DisplayOled::drawPlaybackRecList(const Menu &menu, const Playback &playback)
 {
     d.erase();
 
@@ -387,9 +385,7 @@ void DisplayOled::drawPlaybackRecList(
     d.display();
 }
 
-void DisplayOled::drawRecording(
-    uint8_t slot,
-    uint32_t recSec)
+void DisplayOled::drawRecording(uint8_t slot, uint32_t recSec)
 {
     d.erase();
 
@@ -407,27 +403,29 @@ void DisplayOled::drawRecording(
     d.display();
 }
 
-void DisplayOled::drawServoSetup(
-    const RuntimeSettings &edit,
-    uint8_t index)
+void DisplayOled::drawServoSetup(const RuntimeSettings &edit, uint8_t index)
 {
     d.erase();
 
     d.text(0, 0, "SERVO SETUP", 1);
 
     String minLine = (index == 0) ? ">" : " ";
+    minLine += "MIN: ";
     minLine += String(servoRel(edit.servoMin));
-    d.text(0, 16, minLine, 1);
+    d.text(0, 14, minLine, 1);
 
     String maxLine = (index == 1) ? ">" : " ";
-    maxLine += "+";
+    maxLine += "MAX: +";
     maxLine += String(servoRel(edit.servoMax));
-    d.text(0, 28, maxLine, 1);
+    d.text(0, 26, maxLine, 1);
 
-    String backLine = (index == 2) ? ">BACK" : " BACK";
-    d.text(0, 40, backLine, 1);
+    String pbLine = (index == 2) ? ">" : " ";
+    pbLine += "PB STOP: ";
+    pbLine += String(edit.playbackStopValue);
+    d.text(0, 38, pbLine, 1);
 
-    d.text(0, 56, "+/- START=Select", 1);
+    String backLine = (index == 3) ? ">BACK" : " BACK";
+    d.text(0, 50, backLine, 1);
 
     d.display();
 }
@@ -457,6 +455,20 @@ void DisplayOled::drawEditServoMax(const RuntimeSettings &edit)
     d.text(0, 20, value, 2);
 
     d.text(0, 54, "+/-  START=Back", 1);
+
+    d.display();
+}
+
+void DisplayOled::drawEditPlaybackStop(const RuntimeSettings &edit)
+{
+    d.erase();
+
+    d.text(0, 0, "EDIT PLAYBACK STOP", 1);
+
+    String value = String(edit.playbackStopValue);
+    d.text(0, 20, value, 2);
+
+    d.text(0, 54, "+/- START=Back", 1);
 
     d.display();
 }

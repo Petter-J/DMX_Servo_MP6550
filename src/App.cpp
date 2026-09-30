@@ -161,6 +161,9 @@ void App::tick()
     case MENU_EDIT_SERVO_MAX:
         handleEditServoMax();
         break;
+    case MENU_EDIT_PLAYBACK_STOP:
+        handleEditPlaybackStop();
+        break;
     case MENU_MOTOR_PWM_SETUP:
         handleMotorPwmSetup();
         break;
@@ -660,11 +663,11 @@ void App::handleServoSetup()
 {
     if (buttons.minusShort)
     {
-        servoSetupIndex = (servoSetupIndex + 1) % 3;
+        servoSetupIndex = (servoSetupIndex + 1) % 4;
     }
     if (buttons.plusShort)
     {
-        servoSetupIndex = (servoSetupIndex + 2) % 3;
+        servoSetupIndex = (servoSetupIndex + 2) % 4;
     }
     if (buttons.startShort)
     {
@@ -676,10 +679,15 @@ void App::handleServoSetup()
         {
             state = MENU_EDIT_SERVO_MAX;
         }
+        else if (servoSetupIndex == 2)
+        {
+            state = MENU_EDIT_PLAYBACK_STOP;
+        }
         else
         {
             state = MENU_MAIN;
         }
+
         return;
     }
     if (buttons.stopShort)
@@ -815,6 +823,79 @@ void App::handleEditServoMax()
         return;
     }
     ui.drawEditServoMax(edit);
+}
+
+// --------------------------------------------------
+// EDIT PLAYBACK STOP
+// --------------------------------------------------   
+
+void App::handleEditPlaybackStop()
+{
+    static uint32_t nextRptPlus = 0;
+    static uint32_t nextRptMinus = 0;
+
+    const uint32_t FIRST_DELAY_MS = 350;
+    const uint32_t REPEAT_MS = 70;
+
+    uint32_t now = millis();
+
+    if (buttons.plusShort && edit.playbackStopValue < 255)
+        edit.playbackStopValue++;
+
+    if (buttons.minusShort && edit.playbackStopValue > 0)
+        edit.playbackStopValue--;
+
+    if (buttons.plusHeld)
+    {
+        if (nextRptPlus == 0)
+            nextRptPlus = now + FIRST_DELAY_MS;
+
+        if (now >= nextRptPlus)
+        {
+            if (edit.playbackStopValue < 255)
+                edit.playbackStopValue++;
+
+            nextRptPlus = now + REPEAT_MS;
+        }
+    }
+    else
+    {
+        nextRptPlus = 0;
+    }
+
+    if (buttons.minusHeld)
+    {
+        if (nextRptMinus == 0)
+            nextRptMinus = now + FIRST_DELAY_MS;
+
+        if (now >= nextRptMinus)
+        {
+            if (edit.playbackStopValue > 0)
+                edit.playbackStopValue--;
+
+            nextRptMinus = now + REPEAT_MS;
+        }
+    }
+    else
+    {
+        nextRptMinus = 0;
+    }
+
+    lastValue = edit.playbackStopValue;
+    lastAngle = valueToServoAngle(edit.playbackStopValue, edit.servoMin, edit.servoMax);
+
+    transport.send(lastAngle, 0, 0, false);
+
+    if (buttons.startShort || buttons.stopShort)
+    {
+        nextRptPlus = 0;
+        nextRptMinus = 0;
+
+        state = MENU_SERVO_SETUP;
+        return;
+    }
+
+    ui.drawEditPlaybackStop(edit);
 }
 
 // --------------------------------------------------

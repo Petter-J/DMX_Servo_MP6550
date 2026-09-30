@@ -28,7 +28,7 @@ private:
         MENU_SERVO_SETUP,
         MENU_EDIT_SERVO_MIN,
         MENU_EDIT_SERVO_MAX,
-
+        MENU_EDIT_PLAYBACK_STOP,
         MENU_MOTOR_PWM_SETUP,
         MENU_EDIT_PWM_MIN,
         MENU_EDIT_PWM_MAX
@@ -84,16 +84,13 @@ private:
     void handleMenuMain();
     void handleEditInput();
     void handleEditDmx();
-
     void handlePlaybackRecList();
     void handlePlaybackRecording();
-
     void sendCurrentValue();
-
     void handleServoSetup();
     void handleEditServoMin();
     void handleEditServoMax();
-
+    void handleEditPlaybackStop();
     void handleMotorPwmSetup();
     void handleEditPwmMin();
     void handleEditPwmMax();
