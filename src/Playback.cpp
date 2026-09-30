@@ -2,7 +2,9 @@
 #include "Config.h"
 #include <Preferences.h>
 
-void Playback::begin() {}
+void Playback::begin()
+{
+}
 
 void Playback::startRecording(uint8_t slotIndex)
 {
@@ -17,20 +19,25 @@ void Playback::startRecording(uint8_t slotIndex)
     recording = true;
 }
 
-void Playback::tickRecord(uint8_t sliderValue)
+void Playback::tickRecord(uint8_t servoValue, uint8_t motorValue)
 {
     if (!recording)
         return;
 
     uint32_t now = millis();
+
     if (now - recLastMs < SAMPLE_MS)
         return;
+
     recLastMs = now;
 
     auto &s = slots[recSlot];
+
     if (s.len < MAX_SAMPLES)
     {
-        s.data[s.len++] = sliderValue;
+        s.data[s.len].servo = servoValue;
+        s.data[s.len].motor = motorValue;
+        s.len++;
     }
 }
 
@@ -48,6 +55,7 @@ bool Playback::isRecorded(uint8_t slotIndex) const
 {
     if (slotIndex >= PLAYBACK_SLOTS)
         return false;
+
     return slots[slotIndex].recorded;
 }
 
@@ -55,6 +63,7 @@ void Playback::startPlaying(uint8_t slotIndex)
 {
     if (slotIndex >= PLAYBACK_SLOTS)
         return;
+
     if (!slots[slotIndex].recorded || slots[slotIndex].len == 0)
         return;
 
@@ -79,34 +88,33 @@ uint8_t Playback::currentPlayingSlot() const
     return playSlot;
 }
 
-uint8_t Playback::tickPlaybackValue()
+void Playback::tickPlaybackValues(uint8_t &servoValue, uint8_t &motorValue)
 {
-    // Om inte playing: returnera säkert värde
-    if (!playing)
-    {
-        if (playSlot >= PLAYBACK_SLOTS)
-            return 0;
-        auto &s = slots[playSlot];
-        if (s.len == 0)
-            return 0;
-        if (playPos >= s.len)
-            return s.data[s.len - 1];
-        return s.data[playPos];
-    }
+    servoValue = 0;
+    motorValue = 127;
+
+    if (playSlot >= PLAYBACK_SLOTS)
+        return;
 
     auto &s = slots[playSlot];
+
     if (s.len == 0)
     {
         playing = false;
-        return 0;
+        return;
     }
 
     if (playPos >= s.len)
         playPos = s.len - 1;
 
-    uint8_t out = s.data[playPos];
+    servoValue = s.data[playPos].servo;
+    motorValue = s.data[playPos].motor;
+
+    if (!playing)
+        return;
 
     uint32_t now = millis();
+
     if (now - playLastMs >= SAMPLE_MS)
     {
         playLastMs = now;
@@ -114,10 +122,8 @@ uint8_t Playback::tickPlaybackValue()
         if (playPos + 1 < s.len)
             playPos++;
         else
-            playing = false; // slut
+            playing = false;
     }
-
-    return out;
 }
 
 void Playback::eraseRecording(uint8_t slotIndex)
@@ -130,6 +136,7 @@ void Playback::eraseRecording(uint8_t slotIndex)
 
     if (playing && playSlot == slotIndex)
         playing = false;
+
     if (lastRecSlot == slotIndex)
         lastRecSlot = 0;
 }
@@ -137,14 +144,18 @@ void Playback::eraseRecording(uint8_t slotIndex)
 bool Playback::saveAllToFlash()
 {
     Preferences p;
-    if (!p.begin("playback", false))
-        return false; // RW
 
-    p.putUChar("ver", 1);
+    if (!p.begin("playback", false))
+        return false;
+
+    p.putUChar("ver", 2);
 
     for (uint8_t i = 0; i < PLAYBACK_SLOTS; i++)
     {
-        char kRec[8], kLen[8], kDat[8];
+        char kRec[8];
+        char kLen[8];
+        char kDat[8];
+
         snprintf(kRec, sizeof(kRec), "r%u", i);
         snprintf(kLen, sizeof(kLen), "l%u", i);
         snprintf(kDat, sizeof(kDat), "d%u", i);
@@ -152,14 +163,21 @@ bool Playback::saveAllToFlash()
         p.putBool(kRec, slots[i].recorded);
 
         uint16_t len = slots[i].recorded ? slots[i].len : 0;
+
         if (len > MAX_SAMPLES)
             len = MAX_SAMPLES;
+
         p.putUShort(kLen, len);
 
         if (len > 0)
-            p.putBytes(kDat, slots[i].data, len);
+        {
+            size_t bytes = len * sizeof(PlaybackSample);
+            p.putBytes(kDat, slots[i].data, bytes);
+        }
         else
+        {
             p.remove(kDat);
+        }
     }
 
     p.end();
@@ -169,11 +187,13 @@ bool Playback::saveAllToFlash()
 bool Playback::loadAllFromFlash()
 {
     Preferences p;
+
     if (!p.begin("playback", true))
-        return false; // RO
+        return false;
 
     uint8_t ver = p.getUChar("ver", 0);
-    if (ver != 1)
+
+    if (ver != 2)
     {
         p.end();
         return false;
@@ -181,13 +201,17 @@ bool Playback::loadAllFromFlash()
 
     for (uint8_t i = 0; i < PLAYBACK_SLOTS; i++)
     {
-        char kRec[8], kLen[8], kDat[8];
+        char kRec[8];
+        char kLen[8];
+        char kDat[8];
+
         snprintf(kRec, sizeof(kRec), "r%u", i);
         snprintf(kLen, sizeof(kLen), "l%u", i);
         snprintf(kDat, sizeof(kDat), "d%u", i);
 
         bool rec = p.getBool(kRec, false);
         uint16_t len = p.getUShort(kLen, 0);
+
         if (len > MAX_SAMPLES)
             len = MAX_SAMPLES;
 
@@ -196,8 +220,10 @@ bool Playback::loadAllFromFlash()
 
         if (slots[i].recorded)
         {
-            size_t got = p.getBytes(kDat, slots[i].data, slots[i].len);
-            if (got != slots[i].len)
+            size_t expected = slots[i].len * sizeof(PlaybackSample);
+            size_t got = p.getBytes(kDat, slots[i].data, expected);
+
+            if (got != expected)
             {
                 slots[i].recorded = false;
                 slots[i].len = 0;

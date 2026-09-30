@@ -4,21 +4,12 @@
 volatile bool TransportEspNow::lastSendSuccess = false;
 volatile uint32_t TransportEspNow::lastSendMs = 0;
 
-void TransportEspNow::onSent(
-    const uint8_t *mac,
-    esp_now_send_status_t status)
+void TransportEspNow::onSent(const uint8_t *mac, esp_now_send_status_t status)
 {
     (void)mac;
 
-    lastSendSuccess =
-        (status == ESP_NOW_SEND_SUCCESS);
-
+    lastSendSuccess = (status == ESP_NOW_SEND_SUCCESS);
     lastSendMs = millis();
-
-    Serial.println(
-        lastSendSuccess
-            ? "ESP-NOW: OK"
-            : "ESP-NOW: FAIL");
 }
 
 void TransportEspNow::begin()
@@ -29,36 +20,21 @@ void TransportEspNow::begin()
     // Lås ESP-NOW till kanal 1
     esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
 
-    Serial.print("TX MAC: ");
-    Serial.println(WiFi.macAddress());
-
     if (esp_now_init() != ESP_OK)
-    {
-        Serial.println("esp_now_init FAIL");
         return;
-    }
 
     esp_now_register_send_cb(onSent);
 
     esp_now_peer_info_t peerInfo = {};
 
-    memcpy(
-        peerInfo.peer_addr,
-        receiverMac,
-        6);
+    memcpy(peerInfo.peer_addr, receiverMac, 6);
 
     peerInfo.channel = 1;
     peerInfo.ifidx = WIFI_IF_STA;
     peerInfo.encrypt = false;
 
     if (esp_now_add_peer(&peerInfo) != ESP_OK)
-    {
-        Serial.println("add_peer FAIL");
         return;
-    }
-
-    Serial.println("ESP-NOW ready");
-    Serial.println("ESP-NOW channel = 1");
 }
 
 void TransportEspNow::send(
@@ -72,17 +48,10 @@ void TransportEspNow::send(
     p.pwm2 = pwm2;
     p.enable = enable ? 1 : 0;
 
-    esp_err_t r = esp_now_send(
+    esp_now_send(
         receiverMac,
         reinterpret_cast<uint8_t *>(&p),
         sizeof(p));
-
-    if (r != ESP_OK)
-    {
-        Serial.printf(
-            "send err=%d\n",
-            static_cast<int>(r));
-    }
 }
 
 bool TransportEspNow::linkOk() const
@@ -93,6 +62,5 @@ bool TransportEspNow::linkOk() const
     if (lastSendMs == 0)
         return false;
 
-    return (millis() - lastSendMs) <
-           LINK_TIMEOUT_MS;
+    return (millis() - lastSendMs) < LINK_TIMEOUT_MS;
 }

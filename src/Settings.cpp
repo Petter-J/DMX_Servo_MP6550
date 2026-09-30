@@ -50,32 +50,14 @@ RuntimeSettings SettingsStore::load()
 
     prefs.begin("cfg", true);
 
-    s.dmxAddress =
-        prefs.getUShort("dmxAddr", 1);
-
-    s.selectedPlayback =
-        prefs.getUChar("pbSel", 1);
-
-    s.inputMode =
-        static_cast<InputMode>(
-            prefs.getUChar("inMode", 0));
-
-    s.playbackStopValue =
-        prefs.getUChar(
-            "pbStop",
-            PLAYBACK_STOP_VALUE_DEFAULT);
-
-    s.servoMin =
-        prefs.getUChar("servoMin", 10);
-
-    s.servoMax =
-        prefs.getUChar("servoMax", 170);
-
-    s.pwmMin =
-        prefs.getUChar("pwmMin", 0);
-
-    s.pwmMax =
-        prefs.getUChar("pwmMax", 255);
+    s.dmxAddress = prefs.getUShort("dmxAddr", 1);
+    s.selectedPlayback = prefs.getUChar("pbSel", 1);
+    s.inputMode = static_cast<InputMode>(prefs.getUChar("inMode", 0));
+    s.playbackStopValue = prefs.getUChar("pbStop", PLAYBACK_STOP_VALUE_DEFAULT);
+    s.servoMin = prefs.getUChar("servoMin", 10);
+    s.servoMax = prefs.getUChar("servoMax", 170);
+    s.pwmMin = prefs.getUChar("pwmMin", 0);
+    s.pwmMax = prefs.getUChar("pwmMax", 255);
 
     prefs.end();
 
@@ -84,8 +66,7 @@ RuntimeSettings SettingsStore::load()
     return s;
 }
 
-void SettingsStore::save(
-    const RuntimeSettings &sIn)
+void SettingsStore::save(const RuntimeSettings &sIn)
 {
     RuntimeSettings s = sIn;
 
@@ -93,38 +74,14 @@ void SettingsStore::save(
 
     prefs.begin("cfg", false);
 
-    prefs.putUShort(
-        "dmxAddr",
-        s.dmxAddress);
-
-    prefs.putUChar(
-        "pbSel",
-        s.selectedPlayback);
-
-    prefs.putUChar(
-        "inMode",
-        static_cast<uint8_t>(
-            s.inputMode));
-
-    prefs.putUChar(
-        "pbStop",
-        s.playbackStopValue);
-
-    prefs.putUChar(
-        "servoMin",
-        s.servoMin);
-
-    prefs.putUChar(
-        "servoMax",
-        s.servoMax);
-
-    prefs.putUChar(
-        "pwmMin",
-        s.pwmMin);
-
-    prefs.putUChar(
-        "pwmMax",
-        s.pwmMax);
+    prefs.putUShort("dmxAddr", s.dmxAddress);
+    prefs.putUChar("pbSel", s.selectedPlayback);
+    prefs.putUChar("inMode", static_cast<uint8_t>(s.inputMode));
+    prefs.putUChar("pbStop", s.playbackStopValue);
+    prefs.putUChar("servoMin", s.servoMin);
+    prefs.putUChar("servoMax", s.servoMax);
+    prefs.putUChar("pwmMin", s.pwmMin);
+    prefs.putUChar("pwmMax", s.pwmMax);
 
     prefs.end();
 }

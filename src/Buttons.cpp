@@ -32,7 +32,6 @@ void Buttons::upd(B &b)
             if (b.stable)
             {
                 b.downMs = millis();
-
                 b.f1 = false;
                 b.f2 = false;
                 b.f5 = false;
@@ -46,8 +45,7 @@ void Buttons::upd(B &b)
 
     if (b.stable)
     {
-        uint32_t h =
-            millis() - b.downMs;
+        uint32_t h = millis() - b.downMs;
 
         if (!b.f1 && h >= L1)
         {
@@ -117,6 +115,7 @@ void Buttons::clearEvents()
     startShort = startLong1s = startLong2s = false;
     stopShort = stopLong1s = stopLong5s = false;
     plusShort = minusShort = false;
+
     startHeld = false;
-    plusHeld = minusHeld = false; // NY
+    plusHeld = minusHeld = false;
 }

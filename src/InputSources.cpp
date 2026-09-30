@@ -10,30 +10,16 @@ void InputSources::begin()
     pinMode(SLIDER_PIN, INPUT);
     pinMode(PWM_SLIDER_PIN, INPUT);
 
-    // analogRead -> 0..255
     analogReadResolution(8);
 
     dmx_config_t config = DMX_CONFIG_DEFAULT;
 
-    bool ok = dmx_driver_install(
-        dmxPort,
-        &config,
-        nullptr,
-        0);
+    bool ok = dmx_driver_install(dmxPort, &config, nullptr, 0);
 
     if (!ok)
-    {
-        Serial.println("DMX driver fail");
         return;
-    }
 
-    dmx_set_pin(
-        dmxPort,
-        DMX_TX_PIN,
-        DMX_RX_PIN,
-        DMX_EN_PIN);
-
-    Serial.println("DMX input ready");
+    dmx_set_pin(dmxPort, DMX_TX_PIN, DMX_RX_PIN, DMX_EN_PIN);
 }
 
 uint8_t InputSources::readDmx(uint16_t address)
@@ -47,20 +33,13 @@ uint8_t InputSources::readDmx(uint16_t address)
     static uint8_t lastGood = 0;
 
     dmx_packet_t packet;
-
-    int packetSize = dmx_receive(
-        dmxPort,
-        &packet,
-        1);
+    int packetSize = dmx_receive(dmxPort, &packet, 1);
 
     if (packetSize > 0 && packet.err == DMX_OK)
     {
         lastDmxPacketMs = millis();
 
-        dmx_read(
-            dmxPort,
-            dmxData,
-            packet.size);
+        dmx_read(dmxPort, dmxData, packet.size);
 
         // dmxData[0] = start code
         // DMX kanal 1 = dmxData[1]
@@ -68,9 +47,7 @@ uint8_t InputSources::readDmx(uint16_t address)
         uint16_t index = address;
 
         if (index < packet.size)
-        {
             lastGood = dmxData[index];
-        }
     }
 
     return lastGood;
@@ -97,24 +74,15 @@ void InputSources::readDmx3(
     static uint8_t lastPwm2 = 0;
 
     dmx_packet_t packet;
-
-    int packetSize = dmx_receive(
-        dmxPort,
-        &packet,
-        1);
+    int packetSize = dmx_receive(dmxPort, &packet, 1);
 
     if (packetSize > 0)
     {
-        // DMX-signal finns
         lastDmxPacketMs = millis();
 
-        // Uppdatera värden bara om paketet är korrekt
         if (packet.err == DMX_OK)
         {
-            dmx_read(
-                dmxPort,
-                dmxData,
-                packet.size);
+            dmx_read(dmxPort, dmxData, packet.size);
 
             uint16_t servoIndex = address;
             uint16_t pwm1Index = address + 1;
@@ -138,14 +106,12 @@ void InputSources::readDmx3(
 
 uint8_t InputSources::readSlider()
 {
-    return static_cast<uint8_t>(
-        analogRead(SLIDER_PIN));
+    return static_cast<uint8_t>(analogRead(SLIDER_PIN));
 }
 
 uint8_t InputSources::readPwmSlider()
 {
-    return static_cast<uint8_t>(
-        analogRead(PWM_SLIDER_PIN));
+    return static_cast<uint8_t>(analogRead(PWM_SLIDER_PIN));
 }
 
 bool InputSources::dmxOk() const
@@ -153,6 +119,5 @@ bool InputSources::dmxOk() const
     if (lastDmxPacketMs == 0)
         return false;
 
-    return (millis() - lastDmxPacketMs) <
-           DMX_LOST_TIMEOUT_MS;
+    return (millis() - lastDmxPacketMs) < DMX_LOST_TIMEOUT_MS;
 }
