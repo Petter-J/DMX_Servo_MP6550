@@ -9,6 +9,7 @@ public:
     enum MainItem : uint8_t
     {
         ITEM_INPUT_MODE = 0,
+        ITEM_RECEIVER,
         ITEM_DMX_ADDRESS,
         ITEM_PLAYBACK,
         ITEM_SERVO_SETUP,

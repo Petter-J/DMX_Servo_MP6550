@@ -12,7 +12,7 @@ void TransportEspNow::onSent(const uint8_t *mac, esp_now_send_status_t status)
     lastSendMs = millis();
 }
 
-void TransportEspNow::begin()
+void TransportEspNow::begin(uint8_t receiverIndex)
 {
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
@@ -25,16 +25,29 @@ void TransportEspNow::begin()
 
     esp_now_register_send_cb(onSent);
 
-    esp_now_peer_info_t peerInfo = {};
+    setReceiver(receiverIndex);
+}
 
+void TransportEspNow::setReceiver(uint8_t receiverIndex)
+{
+    if (receiverIndex >= RECEIVER_COUNT)
+        receiverIndex = 0;
+
+    esp_now_del_peer(receiverMac);
+
+    memcpy(receiverMac, RECEIVERS[receiverIndex].mac, 6);
+
+    esp_now_peer_info_t peerInfo = {};
     memcpy(peerInfo.peer_addr, receiverMac, 6);
 
     peerInfo.channel = 1;
     peerInfo.ifidx = WIFI_IF_STA;
     peerInfo.encrypt = false;
 
-    if (esp_now_add_peer(&peerInfo) != ESP_OK)
-        return;
+    esp_now_add_peer(&peerInfo);
+
+    lastSendSuccess = false;
+    lastSendMs = 0;
 }
 
 void TransportEspNow::send(

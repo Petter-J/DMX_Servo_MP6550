@@ -1,5 +1,6 @@
 #include "Settings.h"
 #include "Playback.h"
+#include "Receivers.h"
 
 void SettingsStore::begin()
 {
@@ -21,6 +22,9 @@ void SettingsStore::clamp(RuntimeSettings &s)
     // Input mode
     if (static_cast<uint8_t>(s.inputMode) > 2)
         s.inputMode = InputMode::DMX;
+
+    if (s.receiverIndex >= RECEIVER_COUNT)
+        s.receiverIndex = 0;
 
     // Playback
     if (s.selectedPlayback < 1)
@@ -53,6 +57,7 @@ RuntimeSettings SettingsStore::load()
     s.dmxAddress = prefs.getUShort("dmxAddr", 1);
     s.selectedPlayback = prefs.getUChar("pbSel", 1);
     s.inputMode = static_cast<InputMode>(prefs.getUChar("inMode", 0));
+    s.receiverIndex = prefs.getUChar("rxIdx", 0);
     s.playbackStopValue = prefs.getUChar("pbStop", PLAYBACK_STOP_VALUE_DEFAULT);
     s.servoMin = prefs.getUChar("servoMin", 10);
     s.servoMax = prefs.getUChar("servoMax", 170);
@@ -77,6 +82,7 @@ void SettingsStore::save(const RuntimeSettings &sIn)
     prefs.putUShort("dmxAddr", s.dmxAddress);
     prefs.putUChar("pbSel", s.selectedPlayback);
     prefs.putUChar("inMode", static_cast<uint8_t>(s.inputMode));
+    prefs.putUChar("rxIdx", s.receiverIndex);
     prefs.putUChar("pbStop", s.playbackStopValue);
     prefs.putUChar("servoMin", s.servoMin);
     prefs.putUChar("servoMax", s.servoMax);

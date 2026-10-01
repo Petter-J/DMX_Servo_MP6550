@@ -1,8 +1,8 @@
 #pragma once
-
 #include <Arduino.h>
 #include <WiFi.h>
 #include <esp_now.h>
+#include "Receivers.h"
 
 struct ControlData
 {
@@ -15,7 +15,8 @@ struct ControlData
 class TransportEspNow
 {
 public:
-    void begin();
+    void begin(uint8_t receiverIndex);
+    void setReceiver(uint8_t receiverIndex);
 
     void send(
         uint8_t angle,
@@ -26,7 +27,7 @@ public:
     bool linkOk() const;
 
 private:
-    uint8_t receiverMac[6] = {0x3C,0x0F,0x02,0xE4,0xCD,0x58};
+    uint8_t receiverMac[6]{};
 
     ControlData p{};
 

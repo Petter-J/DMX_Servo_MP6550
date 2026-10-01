@@ -1,6 +1,6 @@
 #include "DisplayOled.h"
 #include "Config.h"
-
+#include "Receivers.h"
 #include <res/qw_fnt_5x7.h>
 #include <res/qw_fnt_8x16.h>
 
@@ -226,6 +226,7 @@ void DisplayOled::drawMainMenu(
 {
     static const char *names[] = {
         "Input Mode",
+        "Receiver",
         "DMX Address",
         "Playback",
         "Servo",
@@ -263,6 +264,11 @@ void DisplayOled::drawMainMenu(
         {
             line += ": ";
             line += modeName(edit.inputMode);
+        }
+        else if (i == Menu::ITEM_RECEIVER)
+        {
+            line += ": ";
+            line += RECEIVERS[edit.receiverIndex].name;
         }
         else if (i == Menu::ITEM_DMX_ADDRESS)
         {
@@ -323,6 +329,20 @@ void DisplayOled::drawEditInput(const RuntimeSettings &edit)
     d.text(0, 0, "EDIT Input", 1);
     d.text(0, 16, modeName(edit.inputMode), 1);
     d.text(0, 54, "+/-  START=Back", 1);
+
+    d.display();
+}
+
+void DisplayOled::drawEditReceiver(const RuntimeSettings &edit)
+{
+    d.erase();
+
+    d.text(0, 0, "EDIT RECEIVER", 1);
+
+    String receiverName = RECEIVERS[edit.receiverIndex].name;
+    d.text(0, 20, receiverName, 1);
+
+    d.text(0, 54, "+/- START=Back", 1);
 
     d.display();
 }

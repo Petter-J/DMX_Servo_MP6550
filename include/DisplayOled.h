@@ -41,6 +41,7 @@ public:
         const Playback &playback);
 
     void drawEditInput(const RuntimeSettings &edit);
+    void drawEditReceiver(const RuntimeSettings &edit);
     void drawEditDmx(const RuntimeSettings &edit);
 
     void drawPlaybackRecList(

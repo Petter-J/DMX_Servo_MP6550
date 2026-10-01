@@ -22,6 +22,7 @@ private:
         RUN = 0,
         MENU_MAIN,
         MENU_EDIT_INPUT,
+        MENU_EDIT_RECEIVER,
         MENU_EDIT_DMX,
         MENU_PLAYBACK_REC_LIST,
         MENU_PLAYBACK_RECORDING,
@@ -83,6 +84,7 @@ private:
     void handleRun();
     void handleMenuMain();
     void handleEditInput();
+    void handleEditReceiver(); 
     void handleEditDmx();
     void handlePlaybackRecList();
     void handlePlaybackRecording();

@@ -1,5 +1,6 @@
 #include "App.h"
 #include "Config.h"
+#include "Receivers.h"
 
 // --------------------------------------------------
 // Hjälpfunktioner
@@ -82,7 +83,7 @@ void App::begin()
     runtime = settingsStore.load();
     edit = runtime;
     menu.begin();
-    transport.begin();
+    transport.begin(runtime.receiverIndex);
     inputs.begin();
     playback.begin();
     playback.loadAllFromFlash();
@@ -143,6 +144,9 @@ void App::tick()
     case MENU_EDIT_INPUT:
         handleEditInput();
         break;
+    case MENU_EDIT_RECEIVER:
+        handleEditReceiver();
+        break;
     case MENU_EDIT_DMX:
         handleEditDmx();
         break;
@@ -194,7 +198,7 @@ void App::handleRun()
         {
             sliderActive = true;
         }
-        if (buttons.stopShort)
+        if (buttons.stopPress)
         {
             sliderActive = false;
             lastPwm1 = 0;
@@ -209,7 +213,7 @@ void App::handleRun()
             uint8_t idx = (runtime.selectedPlayback > 0) ? (runtime.selectedPlayback - 1) : 0;
             playback.startPlaying(idx);
         }
-        if (buttons.stopShort)
+        if (buttons.stopPress)
             playback.stopPlaying();
         if (buttons.plusShort)
         {
@@ -242,7 +246,7 @@ void App::handleRun()
             }
         }
     }
-    if (buttons.stopLong1s)
+    if (buttons.stopLong2s)
     {
         edit = runtime;
         menuInputArmed = false;
@@ -299,6 +303,9 @@ void App::handleMenuMain()
         case Menu::ITEM_INPUT_MODE:
             state = MENU_EDIT_INPUT;
             break;
+        case Menu::ITEM_RECEIVER:
+            state = MENU_EDIT_RECEIVER;
+            break;
         case Menu::ITEM_DMX_ADDRESS:
             state = MENU_EDIT_DMX;
             break;
@@ -323,6 +330,7 @@ void App::handleMenuMain()
         if (menu.mainIndex() == Menu::ITEM_EXIT)
         {
             runtime = edit;
+            transport.setReceiver(runtime.receiverIndex);
             if (runtime.inputMode == InputMode::SLIDER)
             {
                 sliderActive = false;
@@ -338,6 +346,7 @@ void App::handleMenuMain()
         else if (menu.mainIndex() == Menu::ITEM_SAVE)
         {
             runtime = edit;
+            transport.setReceiver(runtime.receiverIndex);
             if (runtime.inputMode == InputMode::SLIDER)
             {
                 sliderActive = false;
@@ -369,6 +378,30 @@ void App::handleEditInput()
     if (buttons.startShort)
         state = MENU_MAIN;
     ui.drawEditInput(edit);
+}
+
+void App::handleEditReceiver()
+{
+    if (buttons.plusShort)
+    {
+        edit.receiverIndex++;
+
+        if (edit.receiverIndex >= RECEIVER_COUNT)
+            edit.receiverIndex = 0;
+    }
+
+    if (buttons.minusShort)
+    {
+        if (edit.receiverIndex == 0)
+            edit.receiverIndex = RECEIVER_COUNT - 1;
+        else
+            edit.receiverIndex--;
+    }
+
+    if (buttons.startShort)
+        state = MENU_MAIN;
+
+    ui.drawEditReceiver(edit);
 }
 
 // --------------------------------------------------
@@ -470,7 +503,7 @@ void App::handlePlaybackRecList()
         state = MENU_PLAYBACK_RECORDING;
         return;
     }
-    if (buttons.stopLong1s && !menu.playbackRecIsBack())
+    if (buttons.stopLong2s && !menu.playbackRecIsBack())
     {
         uint8_t slot = menu.playbackRecSlotIndex();
         playback.eraseRecording(slot);

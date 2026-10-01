@@ -31,6 +31,8 @@ struct RuntimeSettings
 {
     InputMode inputMode = InputMode::DMX;
 
+    uint8_t receiverIndex = 0;
+
     uint16_t dmxAddress = 1;
     uint8_t selectedPlayback = 1;
 
