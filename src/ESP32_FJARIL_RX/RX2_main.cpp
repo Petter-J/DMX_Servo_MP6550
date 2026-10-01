@@ -3,6 +3,7 @@
 #include <esp_now.h>
 #include <ESP32Servo.h>
 #include <esp_wifi.h>
+#include <Adafruit_NeoPixel.h>
 
 // --------------------------------------------------
 // PINNAR
@@ -12,6 +13,9 @@
 #define PWM2_PIN 5
 #define SERVO_PIN 6
 #define SLEEP_PIN 7
+
+#define LED_PIN 21
+#define LED_COUNT 1
 
 // --------------------------------------------------
 // SERVO
@@ -38,7 +42,17 @@
 
 #define RX_TIMEOUT_MS 500
 
+// --------------------------------------------------
+// OBJEKT
+// --------------------------------------------------
+
 Servo servo;
+
+Adafruit_NeoPixel led(LED_COUNT, LED_PIN, NEO_RGB + NEO_KHZ800);
+
+// --------------------------------------------------
+// STATUS
+// --------------------------------------------------
 
 uint32_t lastRxMs = 0;
 bool failsafeActive = false;
@@ -66,6 +80,16 @@ struct ControlData
     uint8_t pwm2;
     uint8_t enable;
 };
+
+// --------------------------------------------------
+// LED
+// --------------------------------------------------
+
+void setLed(uint8_t r, uint8_t g, uint8_t b)
+{
+    led.setPixelColor(0, led.Color(r, g, b));
+    led.show();
+}
 
 // --------------------------------------------------
 // MOTOR OFF
@@ -106,6 +130,9 @@ void onReceive(const uint8_t *mac, const uint8_t *data, int len)
 
     lastRxMs = millis();
     failsafeActive = false;
+
+    // Grön = ESP-NOW kontakt OK
+    setLed(0, 255, 0);
 
     // Servo
     servo.write(angle);
@@ -187,6 +214,13 @@ void onReceive(const uint8_t *mac, const uint8_t *data, int len)
 
 void setup()
 {
+    // NeoPixel
+    led.begin();
+    led.setBrightness(40);
+
+    // Blå = RX startad, väntar på TX
+    setLed(0, 0, 255);
+
     // MP6550
     pinMode(SLEEP_PIN, OUTPUT);
     digitalWrite(SLEEP_PIN, LOW);
@@ -215,6 +249,10 @@ void setup()
     if (esp_now_init() != ESP_OK)
     {
         motorDisable();
+
+        // Röd = ESP-NOW startfel
+        setLed(255, 0, 0);
+
         return;
     }
 
@@ -240,8 +278,12 @@ void loop()
     if (!failsafeActive && millis() - lastRxMs > RX_TIMEOUT_MS)
     {
         motorDisable();
+
         servo.write(SERVO_CENTER_DEFAULT);
 
         failsafeActive = true;
+
+        // Röd = ingen kontakt från TX
+        setLed(255, 0, 0);
     }
 }
